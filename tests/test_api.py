@@ -1,3 +1,6 @@
+from tests.conftest import *  # noqa: F401, F403 (если используешь хелперы, лучше импортировать явно)
+
+
 def create_mountain(client, name="Эльбрус"):
     response = client.post(
         "/api/mountains",
@@ -58,7 +61,6 @@ def create_ascent(client, mountain_id, group_id):
 def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
-
     data = response.json()
     assert data["status"] == "ok"
     assert data["database"] == "ok"
@@ -66,7 +68,8 @@ def test_health(client):
 
 def test_create_mountain(client):
     mountain = create_mountain(client)
-    assert mountain["id"] == 1
+    # ИСПРАВЛЕНО: не привязываемся к конкретному ID
+    assert "id" in mountain
     assert mountain["name"] == "Эльбрус"
 
 
@@ -123,6 +126,7 @@ def test_full_flow(client):
 
     ascent = create_ascent(client, mountain["id"], group["id"])
 
+    # Попытка создать отчёт до завершения восхождения
     response = client.post(
         "/api/reports",
         json={
@@ -133,10 +137,12 @@ def test_full_flow(client):
     )
     assert response.status_code == 409
 
+    # Завершаем восхождение
     response = client.post(f"/api/ascents/{ascent['id']}/complete")
     assert response.status_code == 200
     assert response.json()["status"] == "completed"
 
+    # Создаём отчёт после завершения
     response = client.post(
         "/api/reports",
         json={
