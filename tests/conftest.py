@@ -1,5 +1,6 @@
 import os
 
+# Обязательно ДО импорта app.db и app.main
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 import pytest
@@ -19,4 +20,5 @@ def setup_database():
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
