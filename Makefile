@@ -4,17 +4,15 @@ VENV_UNIX := .venv/bin/python
 PY :=
 
 ifneq ($(wildcard $(VENV_WIN)),)
-PY := $(VENV_WIN)
+	PY := $(VENV_WIN)
 endif
-
 ifeq ($(PY),)
-ifneq ($(wildcard $(VENV_UNIX)),)
-PY := $(VENV_UNIX)
+	ifneq ($(wildcard $(VENV_UNIX)),)
+		PY := $(VENV_UNIX)
+	endif
 endif
-endif
-
 ifeq ($(PY),)
-PY := py
+	PY := $(PYTHON)
 endif
 
 HOST ?= 0.0.0.0
@@ -22,12 +20,17 @@ PORT ?= 8000
 BACKUP_DIR := backups
 TS := $(shell date +%Y%m%d_%H%M%S)
 
-.PHONY: setup run test quality format migrate backup restore verify up down container-check
+.PHONY: setup run test quality format migrate backup restore verify up down container-check docker-build docker-clean
 
 setup:
 	$(PYTHON) -m venv .venv
-	if [ -f .venv/Scripts/python.exe ]; then ./.venv/Scripts/python -m pip install --upgrade pip; else ./.venv/bin/python -m pip install --upgrade pip; fi
-	if [ -f .venv/Scripts/python.exe ]; then ./.venv/Scripts/python -m pip install -r requirements-dev.txt; else ./.venv/bin/python -m pip install -r requirements-dev.txt; fi
+ifeq ($(OS),Windows_NT)
+	$(VENV_WIN) -m pip install --upgrade pip
+	$(VENV_WIN) -m pip install -r requirements-dev.txt
+else
+	$(VENV_UNIX) -m pip install --upgrade pip
+	$(VENV_UNIX) -m pip install -r requirements-dev.txt
+endif
 	@test -f .env || cp .env.example .env
 	@mkdir -p data
 
@@ -35,7 +38,7 @@ run:
 	$(PY) -m uvicorn app.main:app --reload --host $(HOST) --port $(PORT)
 
 test:
-	$(PY) -m pytest -q
+	$(PY) -m pytest -q tests/
 
 quality:
 	$(PY) -m ruff check .
@@ -58,14 +61,23 @@ restore:
 	@test -f "$(FILE)" || (echo "Backup file not found: $(FILE)" && exit 1)
 	cp $(FILE) data/alpine.db
 
-verify: quality test
-	@echo "All local checks passed."
+# ЭТА ЦЕЛЬ БЫЛА В README, НО ОТСУТСТВОВАЛА ЗДЕСЬ!
+verify: test quality
 
-up:
-	docker compose up -d --build
+# Docker команды
+docker-build:
+	docker compose build
+
+up: docker-build
+	docker compose up -d
 
 down:
 	docker compose down
 
+docker-clean: down
+	docker compose down -v --rmi local
+	rm -rf data/*
+
 container-check:
-	docker compose run --rm app sh -c "python -m ruff check . && python -m ruff format --check . && python -m pytest -q"
+	docker compose exec app python -m ruff check .
+	docker compose exec app python -m pytest -q tests/
