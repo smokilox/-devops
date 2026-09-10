@@ -1,12 +1,9 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/alpine.db")
 
@@ -16,8 +13,8 @@ if DATABASE_URL == "sqlite:///:memory:":
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-elif DATABASE_URL.startswith("sqlite:///"):
-    db_path = DATABASE_URL.replace("sqlite:///", "", 1)
+elif DATABASE_URL.startswith("sqlite"):
+    db_path = DATABASE_URL.replace("sqlite:///", "", 1).replace("sqlite:", "", 1)
     if db_path and db_path != ":memory:":
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(
