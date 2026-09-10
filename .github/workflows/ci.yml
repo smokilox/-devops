@@ -18,11 +18,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run verification
-        run: make verify PY=python3
+      - name: Run Quality Checks (Ruff)
+        run: make quality PY=python
+
+      - name: Run Tests (Pytest)
+        run: make test PY=python
